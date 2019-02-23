@@ -1,0 +1,13 @@
+
+	Выражения		
+		(VectorData *)(**vector).data	0x0	VectorData*
+		(VectorData *)data	0x8642e0	VectorData*
+		(VectorData *)vec->data	0x8642e0	VectorData*
+		(byte *)data	0x8642e0	byte*
+		vec	0x8642b8	Vector*
+			*	@0x8642b8	Vector
+				data	0x8642e0	byte*
+				size	0	size_t
+		vec_data	0x8642e0	VectorData*
+		vector	0x8642b8	Vector**
+	Возвращаемое значение		
