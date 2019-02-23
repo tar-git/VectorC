@@ -23,10 +23,43 @@ int vector_initialized(Vector *vector){
 void **get_vector_data(Vector *vector)
 {
     int err = vector_initialized(vector);
-    if(err) {
-        return err;
+    if (err) {
+        return NULL;
     }
     
     VectorData * data   = (VectorData *)vector->data;
     return (void **)data->array;
+}
+
+void * get_vector_at(Vector *vector, size_t pos)
+{
+    int err = vector_initialized(vector);
+    if (err || pos >= vector->size)  {
+        return NULL;
+    }
+    
+    VectorData * data = (VectorData *)vector->data;
+    return (void *)data->array[pos];
+}
+
+void *get_vector_front(Vector *vector)
+{
+    int err = vector_initialized(vector);
+    if (err || !vector->size)  {
+        return NULL;
+    }
+    
+    VectorData * data = (VectorData *)vector->data;
+    return (void *)data->array[0];
+}
+
+void *get_vector_back(Vector *vector)
+{
+    int err = vector_initialized(vector);
+    if (err || !vector->size)  {
+        return NULL;
+    }
+    
+    VectorData * data = (VectorData *)vector->data;
+    return (void *)data->array[(vector->size)-1];
 }

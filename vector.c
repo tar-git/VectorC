@@ -24,12 +24,15 @@ int is_vector_initialized(Vector *vector){
 
 int vector_new(Vector **vector, const size_t elementSize)
 {
+    if(!elementSize){
+        return STATUS_ERROR_BAD_ARG;
+    }
     Vector * vec      = (Vector *)malloc(sizeof(VectorData));
-    if(!vec)  {
+    if(!vec)        {
         return STATUS_ERROR_NO_MEMORY;
     }
     byte * data = (byte *) malloc(sizeof(VectorData));
-    if(!data) {
+    if(!data)       {
         return STATUS_ERROR_NO_MEMORY;
     }
     
@@ -38,15 +41,10 @@ int vector_new(Vector **vector, const size_t elementSize)
     vec_data->elementSize   = elementSize;
     vec_data->delFun        = NULL;
     vec_data->capacity      = 0;
-//    ((VectorData *)data)->array         = NULL;
-//    ((VectorData *)data)->elementSize   = elementSize;
-//    ((VectorData *)data)->delFun        = NULL;
-//    ((VectorData *)data)->capacity      = 0;
-    vec->data           = data;
-    vec->size           = 0;
-    (*vector)           = vec;
+    vec->data               = data;
+    vec->size               = 0;
+    (*vector)               = vec;
     
-    int ppp = 0;
     return STATUS_OK;
 }
 
@@ -76,13 +74,13 @@ int vector_sized_new(Vector** vector, const size_t elementSize, const size_t cou
 
 int vector_set_delete_function(Vector *vector, delete_function deleter)
 {
-    if(vector && vector->data)  {
-        ((VectorData*)vector->data)->delFun = deleter;
-        return STATUS_OK;
+    int err = is_vector_initialized(vector);
+    if(err){
+        return err;
     }
-    else                        {
-        return STATUS_ERROR_BAD_ARG;
-    }
+    
+    ((VectorData*)vector->data)->delFun = deleter;
+    return STATUS_OK;
 }
 
 int vector_free(Vector *vector)
@@ -121,15 +119,24 @@ int vector_fill(Vector *vector, const size_t count, const_ptr value)
     }
     VectorData * data       = (VectorData *)vector->data;
     size_t capacity         = data->capacity;
-    const_ptr * array       = data->array;
-    vector->size            = count;
+    size_t elementSize      = data->elementSize;
     
     if(count > capacity){
         vector_reserve(vector, count);
     }
-
+    
+    const_ptr * array       = data->array;
+    void * new_val          = NULL;
     for(unsigned i = 0; i < count; ++i){
-        array[i] = value;
+        new_val = malloc(elementSize);
+        new_val = memcpy(new_val, value, elementSize);
+        if(!new_val) {
+            return STATUS_ERROR_NO_MEMORY;
+        }
+        array[i] = new_val;
+    }
+    if(count > vector->size) {
+        vector->size         = count;
     }
     
     return STATUS_OK;
@@ -148,7 +155,7 @@ int vector_reserve(Vector *vector, const size_t newCapacity)
         return STATUS_OK;
     }
     
-    void * new_data = realloc(data->array, newCapacity * CONST_PTR_SIZE);
+    void ** new_data = (void **) realloc(data->array, newCapacity * CONST_PTR_SIZE);
     if(!new_data){
         return STATUS_ERROR_NO_MEMORY;
     }
@@ -233,16 +240,30 @@ int vector_insert(Vector *vector, const size_t index, const_ptr element)
 
 int vector_shrink_to_fit(Vector *vector)
 {
-//    int err = is_vector_initialized(vector);
-//    if(err){
-//        return err;
-//    }
+    int err = is_vector_initialized(vector);
+    if(err){
+        return err;
+    }
     
-//    VectorData * data   = (VectorData *)vector->data;
-//    size_t size         = vector->size;
-//    size_t capacity     = data->capacity;
-//    if(capacity == size) {
-//        return STATUS_OK;
-//    }
-//    void * new_data
+    VectorData * data   = (VectorData *)vector->data;
+    size_t size         = vector->size;
+    if(data->capacity == size) {
+        return STATUS_OK;
+    }
+    void ** new_data     = (void **)realloc(data->array, size * CONST_PTR_SIZE);
+    data->array         = new_data;
+    data->capacity      = size;
+    
+    return STATUS_OK;
+}
+
+int vector_capacity(Vector *vector, size_t *capacity)
+{
+    int err = is_vector_initialized(vector);
+    if(err) {
+        return err;
+    }
+    VectorData * data   = (VectorData *)vector->data;
+    (*capacity)         = data->capacity;
+    return STATUS_OK;
 }
