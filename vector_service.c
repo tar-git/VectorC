@@ -4,7 +4,7 @@ typedef struct {
     delete_function delFun;
     size_t capacity;
     size_t elementSize;
-    const_ptr * array;
+    const_ptr array;
 } VectorData;
 
 int vector_initialized(Vector *vector){
@@ -20,7 +20,7 @@ int vector_initialized(Vector *vector){
     return  STATUS_OK;
 }
 
-void **get_vector_data(Vector *vector)
+void * get_vector_data(Vector *vector)
 {
     int err = vector_initialized(vector);
     if (err) {
@@ -28,7 +28,7 @@ void **get_vector_data(Vector *vector)
     }
     
     VectorData * data   = (VectorData *)vector->data;
-    return (void **)data->array;
+    return (void *)data->array;
 }
 
 void * get_vector_at(Vector *vector, size_t pos)
@@ -39,7 +39,7 @@ void * get_vector_at(Vector *vector, size_t pos)
     }
     
     VectorData * data = (VectorData *)vector->data;
-    return (void *)data->array[pos];
+    return (void *)(data->array + pos * data->elementSize);
 }
 
 void *get_vector_front(Vector *vector)
@@ -50,7 +50,7 @@ void *get_vector_front(Vector *vector)
     }
     
     VectorData * data = (VectorData *)vector->data;
-    return (void *)data->array[0];
+    return (void *)(data->array);
 }
 
 void *get_vector_back(Vector *vector)
@@ -61,5 +61,5 @@ void *get_vector_back(Vector *vector)
     }
     
     VectorData * data = (VectorData *)vector->data;
-    return (void *)data->array[(vector->size)-1];
+    return (void *)(data->array+(vector->size-1) * data->elementSize);
 }

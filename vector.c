@@ -6,7 +6,7 @@ typedef struct {
     delete_function delFun;
     size_t capacity;
     size_t elementSize;
-    const_ptr * array;
+    const_ptr array;
 } VectorData;
 
 int is_vector_initialized(Vector *vector){
@@ -27,7 +27,7 @@ int vector_new(Vector **vector, const size_t elementSize)
     if(!elementSize){
         return STATUS_ERROR_BAD_ARG;
     }
-    Vector * vec      = (Vector *)malloc(sizeof(VectorData));
+    Vector * vec      = (Vector *)malloc(sizeof(Vector));
     if(!vec)        {
         return STATUS_ERROR_NO_MEMORY;
     }
@@ -60,13 +60,10 @@ int vector_sized_new(Vector** vector, const size_t elementSize, const size_t cou
     data->elementSize   = elementSize;
     data->capacity      = count;
     p_vector->size      = count;
-    data->array         = malloc(sizeof(const_ptr) * count);
-    const_ptr * array   = data->array;
+    data->array         = malloc(elementSize * count);
+    const_ptr array     = data->array;
     if(!array) {
         return STATUS_ERROR_NO_MEMORY;
-    }
-    for(unsigned i = 0; i < count; ++i){
-        array[i] = NULL;
     }
     
     return STATUS_OK;    
@@ -89,16 +86,15 @@ int vector_free(Vector *vector)
         return STATUS_OK;
     }
     
-    VectorData * data = (VectorData *)vector->data;
+    VectorData * data   = (VectorData *)vector->data;
+    size_t elementSize  = data->elementSize;
     if(data)    {
-        const_ptr * array = data->array;
+        const_ptr array = data->array;
         
         if(array && data->delFun){
             delete_function delFun = data->delFun;
             for(unsigned i = 0; i < vector->size; ++i){
-                if(array[i]){
-                    delFun(array[i]);
-                }
+                delFun(array + i*elementSize);
             }
         }
         
@@ -107,7 +103,6 @@ int vector_free(Vector *vector)
     }
     
     free(vector);
-    vector = NULL;
     return STATUS_OK;
 }
 
@@ -125,15 +120,9 @@ int vector_fill(Vector *vector, const size_t count, const_ptr value)
         vector_reserve(vector, count);
     }
     
-    const_ptr * array       = data->array;
-    void * new_val          = NULL;
+    const_ptr array       = data->array;
     for(unsigned i = 0; i < count; ++i){
-        new_val = malloc(elementSize);
-        new_val = memcpy(new_val, value, elementSize);
-        if(!new_val) {
-            return STATUS_ERROR_NO_MEMORY;
-        }
-        array[i] = new_val;
+        memcpy(array + i*elementSize, value, elementSize);
     }
     if(count > vector->size) {
         vector->size         = count;
@@ -155,7 +144,7 @@ int vector_reserve(Vector *vector, const size_t newCapacity)
         return STATUS_OK;
     }
     
-    void ** new_data = (void **) realloc(data->array, newCapacity * CONST_PTR_SIZE);
+    void * new_data = (void *) realloc(data->array, newCapacity * data->elementSize);
     if(!new_data){
         return STATUS_ERROR_NO_MEMORY;
     }
@@ -176,8 +165,6 @@ int vector_push_back(Vector* vector, const_ptr element){
     size_t size         = vector->size;
     size_t capacity     = data->capacity;
     size_t elementSize  = data->elementSize;
-    void * newElement   = malloc(elementSize);
-    memcpy(newElement, element, elementSize);
     
     if(size >= capacity) {
         int err = vector_reserve(vector, capacity==0? 1: capacity+capacity);
@@ -186,7 +173,8 @@ int vector_push_back(Vector* vector, const_ptr element){
         }
     }
     
-    data->array[(vector->size)++] = newElement;
+    memcpy(data->array + elementSize*(vector->size), element, elementSize);
+    ++(vector->size);
     return STATUS_OK;
 }
 
@@ -202,15 +190,14 @@ int vector_pop_back(Vector *vector, const_ptr *element)
         return STATUS_ERROR_BAD_ARG;
     }
     
-    VectorData * data = (VectorData *)vector->data;
-    const_ptr pValue  = (const_ptr *)data->array[size-1];
-    void * newVal     = malloc(data->elementSize);
-    memcpy(newVal, pValue, data->elementSize);
-    *element          = newVal;
+    VectorData * data   = (VectorData *)vector->data;
+    const_ptr array     = data->array;
+    size_t elementSize  = data->elementSize;
+    memcpy(element, (array + (size-1)*elementSize), elementSize);
    
-    if(data->delFun){
-       data->delFun(pValue); 
-    }
+//    if(data->delFun){
+//       data->delFun(array+(size-1)*elementSize);
+//    }
     --(vector->size);
     
     return STATUS_OK;
@@ -231,9 +218,7 @@ int vector_insert(Vector *vector, const size_t index, const_ptr element)
     }
     
     size_t elementSize  = data->elementSize;
-    void * newElement   = malloc(elementSize);
-    memcpy(newElement, element, elementSize);
-    data->array[index]  = newElement;
+    memcpy((data->array) + index*elementSize, element, elementSize);
     
     return STATUS_OK;
 }
@@ -250,7 +235,7 @@ int vector_shrink_to_fit(Vector *vector)
     if(data->capacity == size) {
         return STATUS_OK;
     }
-    void ** new_data     = (void **)realloc(data->array, size * CONST_PTR_SIZE);
+    void * new_data     = (void *)realloc(data->array, size * data->elementSize);
     data->array         = new_data;
     data->capacity      = size;
     

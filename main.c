@@ -11,7 +11,9 @@ typedef struct {
     byte * mem;
 } byteField;
 
-byteField * CreateByteField();
+byteField * CreateByteField(int val);
+
+int ByteFieldEqual(byteField * a, byteField * b);
 
 void DestroyByteField(void * bf);
 
@@ -42,8 +44,6 @@ void vectorNewSuccess(void);
 
 void vectorNewFail(void);
 
-void vectorSetDeleteFunctionSuccess(void);
-
 void vectorDeleteFunctionSuccess(void);
 
 void vectorFreeSuccess(void);
@@ -71,9 +71,15 @@ void vectorDataSuccess(void);
 
 void vectorAtSuccess(void);
 
+void vectorAtFail(void);
+
 void vectorFrontSuccess(void);
 
+void vectorFrontFail(void);
+
 void vectorBackSuccess(void);
+
+void vectorBackFail(void);
 
 /*----------------TESTS-----------------*/
 
@@ -90,13 +96,12 @@ int main() {
     
     addTestCase(testSuite, "vector_new_success", vectorNewSuccess);
     addTestCase(testSuite, "vector_new_fail", vectorNewFail);
-    addTestCase(testSuite, "vector_set_delete_function_success", vectorSetDeleteFunctionSuccess);
     addTestCase(testSuite, "vector_delete_function_success", vectorDeleteFunctionSuccess);
     addTestCase(testSuite, "vector_free_success", vectorFreeSuccess);
     addTestCase(testSuite, "vector_fill_success", vectorFillSuccess);
     addTestCase(testSuite, "vector_reserve_success", vectorReserveSuccess);
-    addTestCase(testSuite, "vector_pop_back_fail", vectorPopBackFail);
     addTestCase(testSuite, "vector_push_back_success", vectorPushBackSuccess);
+    addTestCase(testSuite, "vector_pop_back_fail", vectorPopBackFail);
     addTestCase(testSuite, "vector_pop_back_success", vectorPopBackSuccess);
     addTestCase(testSuite, "vector_insert_success", vectorInsertSuccess);
     addTestCase(testSuite, "vector_insert_fail", vectorInsertFail);
@@ -105,8 +110,11 @@ int main() {
     
     addTestCase(testSuite, "vector_data_success", vectorDataSuccess);
     addTestCase(testSuite, "vector_at_success", vectorAtSuccess);
+    addTestCase(testSuite, "vector_at_fail", vectorAtFail);
     addTestCase(testSuite, "vector_front_success", vectorFrontSuccess);
+    addTestCase(testSuite, "vector_front_fail", vectorFrontFail);
     addTestCase(testSuite, "vector_back_success", vectorBackSuccess);
+    addTestCase(testSuite, "vector_back_fail", vectorBackFail);
     runTestSuite(testSuite);
     destroyTestSuite(testSuite);
 }
@@ -120,13 +128,11 @@ void delFun(void * ptr) {
 void vectorNewSuccess(void) {
     Vector * vec;
     int vector_new_result = vector_new(&vec, sizeof(int));
-    vector_set_delete_function(vec, delFun);
     
     EXPECT_EQ(vector_new_result, STATUS_OK);
     vector_free(vec);
     
     int vector_sized_new_result = vector_sized_new(&vec, sizeof(char), 10);
-    vector_set_delete_function(vec, delFun);
     EXPECT_EQ(vector_sized_new_result, STATUS_OK);
     vector_free(vec);
 }
@@ -138,33 +144,37 @@ void vectorNewFail(void) {
     vector_free(vec);
 }
 
-void vectorSetDeleteFunctionSuccess(void) {
-    Vector * vec;
-    vector_new(&vec, sizeof(int));
-    
-    int delete_result = vector_set_delete_function(vec, delFun);
-    EXPECT_EQ(delete_result, STATUS_OK);
-    
-    for(int i = 1; i <= 10; ++i){
-        int push_val = i * 10;
-        vector_push_back(vec, &push_val);
-    }
-    
-    vector_free(vec);
-}
-
 void vectorDeleteFunctionSuccess(void){
-    byteField * bf =  CreateByteField();
+    byteField * bf =  CreateByteField(1);
     Vector * vec;
     vector_new(&vec, sizeof(byteField));
     int set_del_fun = vector_set_delete_function(vec, DestroyByteField);
     EXPECT_EQ(set_del_fun, STATUS_OK);
     
     vector_push_back(vec, bf);
+    bf =  CreateByteField(2);
     vector_push_back(vec, bf);
     
     int vectorFree = vector_free(vec);
     EXPECT_EQ(vectorFree, STATUS_OK);
+    
+    vector_sized_new(&vec, sizeof(byteField), 3);
+    vector_set_delete_function(vec, DestroyByteField);
+    bf =  CreateByteField(1);
+    vector_insert(vec, 0, bf);
+    bf =  CreateByteField(2);
+    vector_insert(vec, 1, bf);
+    bf =  CreateByteField(3);
+    vector_insert(vec, 2, bf);
+    
+    byteField * box = malloc(sizeof(byteField));
+    for(int i = 2; i >= 0; --i){
+        bf = CreateByteField(i+1);
+        int pop_res = vector_pop_back(vec, box);
+        EXPECT_EQ(pop_res, STATUS_OK);
+        TS_ASSERT(ByteFieldEqual(bf, box));
+    }
+    vector_free(vec);
 }
 
 void vectorFreeSuccess(void) {
@@ -176,7 +186,6 @@ void vectorFreeSuccess(void) {
            d = 4.4;
     vector_insert(vec, 4, &d);  
     
-    vector_set_delete_function(vec, delFun);
     int vector_free_result = vector_free(vec);
     EXPECT_EQ(vector_free_result, STATUS_OK);
 }
@@ -185,16 +194,15 @@ void vectorFillSuccess(void) {
     const int ARRAY_SIZE = 10;
     Vector * vec;
     vector_new(&vec, sizeof(double)); 
-    vector_set_delete_function(vec, delFun);
     
     double d = 5.5;
-    double * pop_val;
+    double pop_val;
     int fill_empty = vector_fill(vec, ARRAY_SIZE, &d);
     EXPECT_EQ(fill_empty, STATUS_OK);
     
     for(int i = 0; i < ARRAY_SIZE; ++i) {
         vector_pop_back(vec, &pop_val);
-        EXPECT_EQ(*pop_val, d);
+        EXPECT_EQ(pop_val, d);
     }
     
     double x = 9;
@@ -207,7 +215,7 @@ void vectorFillSuccess(void) {
     
     for(int i = 1; i < ARRAY_SIZE; ++i) {
         vector_pop_back(vec, &pop_val);
-        EXPECT_EQ(*pop_val, d);
+        EXPECT_EQ(pop_val, d);
     }
     
     vector_free(vec);
@@ -215,15 +223,11 @@ void vectorFillSuccess(void) {
 
 void vectorReserveSuccess(void) {
     Vector * vec;
-    vector_sized_new(&vec, sizeof(char)*2, 15);
-    vector_set_delete_function(vec, delFun);
+    vector_sized_new(&vec, sizeof(char), 15);
     
     char let = 'A';
-    char * word = (char *) malloc(2);
-    word[1] = '\0';
     for(int i = 0; i < 15; ++i, ++let){
-        word[0] = let;
-        vector_insert(vec, i, word);
+        vector_insert(vec, i, &let);
     }
     size_t cap_before;
     vector_capacity(vec, &cap_before);
@@ -235,9 +239,8 @@ void vectorReserveSuccess(void) {
     let = 'A';
     char * elem;
     for(int i = 0; i < 15; ++i, ++let){
-        word[0] = let;
         elem = vector_at(vec, char, i);
-        EXPECT_EQ(word[0], elem[0]);
+        EXPECT_EQ(let, *elem);
     }
     
     size_t cap_after;
@@ -256,16 +259,41 @@ void vectorReserveSuccess(void) {
 
 void vectorPushBackSuccess(void) {
     Vector * vec;
+    size_t cap;
+    const size_t ARR_SIZE = 3;
     vector_new(&vec, sizeof(int));
-    vector_set_delete_function(vec, delFun);
     
-    int i = 10;
-    int push_in_empty = vector_push_back(vec, &i);
+    int iarr[ARR_SIZE];
+    iarr[0]     = 10;
+    iarr[1]     = 20;
+    iarr[2]     = 30;
+    
+    int push_in_empty = vector_push_back(vec, iarr+0);
+    vector_capacity(vec, &cap);
     EXPECT_EQ(push_in_empty, STATUS_OK);
+    EXPECT_EQ(vec->size, cap);
+    EXPECT_EQ(vec->size, 1);
     
-    i = 20;
-    int push_in_not_empty = vector_push_back(vec, &i);
+    int push_in_not_empty = vector_push_back(vec, iarr+1);
+    vector_capacity(vec, &cap);
     EXPECT_EQ(push_in_not_empty, STATUS_OK);
+    EXPECT_EQ(vec->size, cap);
+    EXPECT_EQ(vec->size, 2);
+    
+    push_in_not_empty = vector_push_back(vec, iarr+2);
+    vector_capacity(vec, &cap);
+    EXPECT_EQ(push_in_not_empty, STATUS_OK);
+    EXPECT_NEQ(vec->size, cap);
+    EXPECT_EQ(vec->size, 3);
+    EXPECT_EQ(cap, 4);
+    
+    
+    int box;
+    for(int i = ARR_SIZE-1; i >= 0; --i){
+        vector_pop_back(vec, &box);
+        EXPECT_EQ(box, iarr[i]);
+    }
+    EXPECT_EQ(vec->size, 0);
     
     vector_free(vec);
 }
@@ -273,7 +301,6 @@ void vectorPushBackSuccess(void) {
 void vectorPopBackSuccess(void) {
     Vector * vec;
     vector_new(&vec, 4);
-    vector_set_delete_function(vec, delFun);
     
     int i = 10;
     vector_push_back(vec, &i);
@@ -294,7 +321,6 @@ void vectorPopBackSuccess(void) {
 void vectorPopBackFail(void) {
     Vector * vec;
     vector_new(&vec, 4);
-    vector_set_delete_function(vec, delFun);
     
     void * x = NULL;
     int pop_back_from_empty = vector_pop_back(vec, x);
@@ -306,7 +332,6 @@ void vectorPopBackFail(void) {
 void vectorInsertSuccess(void){
     Vector * vec;
     vector_sized_new(&vec, sizeof(int), 1);
-    vector_set_delete_function(vec, delFun);
     
     int i = 3;
     int one_elem_insert = vector_insert(vec, 0, &i);
@@ -331,7 +356,6 @@ void vectorInsertSuccess(void){
 void vectorInsertFail(void) {
     Vector * vec;
     vector_new(&vec, sizeof(int));
-    vector_set_delete_function(vec, delFun);
     
     int i = 3;
     int empty_insert = vector_insert(vec, 0, &i);
@@ -343,7 +367,6 @@ void vectorInsertFail(void) {
 void vectorShrinkToFitSuccess(void){
     Vector * vec;
     vector_sized_new(&vec, sizeof(int), 2);
-    vector_set_delete_function(vec, delFun);
     
     int val = 7;
     vector_push_back(vec, &val);
@@ -370,7 +393,6 @@ void vectorCapacitySuccess(void){
     size_t cap_befor = 15, cap_after;
     Vector * vec;
     vector_sized_new(&vec, sizeof(char), cap_befor);
-    vector_set_delete_function(vec, delFun);
     
     int cap_result = vector_capacity(vec, &cap_after);
     EXPECT_EQ(cap_result, STATUS_OK);
@@ -384,7 +406,6 @@ void vectorDataSuccess(void) {
     const int ARRAY_SIZE = 10;
     Vector * vec;
     vector_new(&vec, sizeof(int));
-    vector_set_delete_function(vec, delFun);
     
     int push_val = 0;
     for(int i = 1; i <= ARRAY_SIZE; ++i){
@@ -392,10 +413,10 @@ void vectorDataSuccess(void) {
         vector_push_back(vec, &push_val);
     }
     
-    int ** array = vector_data(vec, int);
+    int * array = vector_data(vec, int);
     EXPECT_NOT_NULL(array);
     for(int i = 0; i < ARRAY_SIZE; ++i){
-        EXPECT_EQ((*array[i]), (i+1)*10);
+        EXPECT_EQ(array[i], (i+1)*10);
     }
     
     vector_free(vec);
@@ -404,7 +425,6 @@ void vectorDataSuccess(void) {
 void vectorAtSuccess(void) {
     Vector * vec;
     vector_sized_new(&vec, sizeof(int), 5);
-    vector_set_delete_function(vec, delFun);
     
     int val = 19;
     vector_insert(vec, 3, &val);
@@ -416,10 +436,24 @@ void vectorAtSuccess(void) {
     vector_free(vec);
 }
 
+void vectorAtFail(void) {
+    Vector * vec;
+    vector_sized_new(&vec, sizeof(int), 2);
+    
+    int val = 19;
+    int insert_res = vector_insert(vec, 1, &val);
+    EXPECT_EQ(insert_res, STATUS_OK);
+    
+    int * vector_element = vector_at(vec, int, 3); //FAIL
+    EXPECT_NOT_NULL(vector_element);
+    EXPECT_EQ((*vector_element), val);
+    
+    vector_free(vec);
+}
+
 void vectorFrontSuccess(void) {
     Vector * vec;
     vector_new(&vec, sizeof(long));
-    vector_set_delete_function(vec, delFun);
     
     long l1 = 12345;
     vector_push_back(vec, &l1);
@@ -433,10 +467,19 @@ void vectorFrontSuccess(void) {
     vector_free(vec);
 }
 
+void vectorFrontFail(void) {
+    Vector * vec;
+    vector_new(&vec, sizeof(long));
+    
+    long * vectorFront = vector_front(vec, long); //FAIL
+    EXPECT_NOT_NULL(vectorFront);
+    
+    vector_free(vec);   
+}
+
 void vectorBackSuccess(void) {
     Vector * vec;
     vector_new(&vec, sizeof(long));
-    vector_set_delete_function(vec, delFun);
     
     long l1 = 12345;
     vector_push_back(vec, &l1);
@@ -450,17 +493,33 @@ void vectorBackSuccess(void) {
     vector_free(vec);
 }
 
+void vectorBackFail(void) {
+    Vector * vec;
+    vector_new(&vec, sizeof(long));
+    
+    long * vectorBack = vector_back(vec, long); //FAIL
+    EXPECT_NOT_NULL(vectorBack);
+    
+    vector_free(vec);
+}
 
-byteField * CreateByteField(){
+byteField * CreateByteField(int val){
     byteField * bf  = (byteField*) malloc(sizeof(byteField));
     bf->mem         = (byte*) malloc(sizeof(byte)*10);
     for(int i = 0; i < 10; ++i){
-        bf->mem[i] = i+1;
+        bf->mem[i] = i+val;
     }
     return bf;
 }
 
+int ByteFieldEqual(byteField * a, byteField * b){
+    for(int i = 0; i < 10; ++i){
+        if(a->mem[i] != b->mem[i])
+            return 0;
+    }
+    return 1;
+}
+
 void DestroyByteField(void * bf){
     free(((byteField*)bf)->mem);
-    free(bf);
 }
