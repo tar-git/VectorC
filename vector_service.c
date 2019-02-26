@@ -1,19 +1,18 @@
 #include "vector_service.h"
 
 typedef struct {
+    byte* data;
+    size_t size;
     delete_function delFun;
     size_t capacity;
     size_t elementSize;
-    const_ptr array;
-} VectorData;
+} ProxyVector;
 
-int vector_initialized(Vector *vector){
-    if(!(vector && vector->data))  {
-        return STATUS_ERROR_BAD_ARG;
-    }
+static int is_vector_initialized(Vector *vector){
     
-    VectorData * data = (VectorData *)vector->data;
-    if(!data->elementSize)          {
+    ProxyVector * vec = vector;
+    
+    if(!(vec && vec->elementSize))  {
         return STATUS_ERROR_BAD_ARG;
     }
     
@@ -22,44 +21,31 @@ int vector_initialized(Vector *vector){
 
 void * get_vector_data(Vector *vector)
 {
-    int err = vector_initialized(vector);
+    int err = is_vector_initialized(vector);
     if (err) {
-        return NULL;
+        return err;
     }
-    
-    VectorData * data   = (VectorData *)vector->data;
-    return (void *)data->array;
+    return (void *)vector->data;
 }
 
 void * get_vector_at(Vector *vector, size_t pos)
 {
-    int err = vector_initialized(vector);
+    int err = is_vector_initialized(vector);
     if (err || pos >= vector->size)  {
         return NULL;
     }
     
-    VectorData * data = (VectorData *)vector->data;
-    return (void *)(data->array + pos * data->elementSize);
-}
-
-void *get_vector_front(Vector *vector)
-{
-    int err = vector_initialized(vector);
-    if (err || !vector->size)  {
-        return NULL;
-    }
-    
-    VectorData * data = (VectorData *)vector->data;
-    return (void *)(data->array);
+    ProxyVector * vec = vector;
+    return (void *)(vec->data + pos * vec->elementSize);
 }
 
 void *get_vector_back(Vector *vector)
 {
-    int err = vector_initialized(vector);
+    int err = is_vector_initialized(vector);
     if (err || !vector->size)  {
         return NULL;
     }
     
-    VectorData * data = (VectorData *)vector->data;
-    return (void *)(data->array+(vector->size-1) * data->elementSize);
+    ProxyVector * vec = vector;
+    return (void *)(vec->data+(vec->size-1) * vec->elementSize);
 }

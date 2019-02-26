@@ -7,14 +7,12 @@ void * get_vector_data(Vector * vector);
 
 void * get_vector_at(Vector * vector, size_t pos);
 
-void * get_vector_front(Vector * vector);
-
 void * get_vector_back(Vector * vector);
 
 #ifdef vector_data
     #undef vector_data
 #define vector_data(vector, type) (\
-    (type*)(get_vector_data(vector))\
+    (type*)get_vector_data(vector)\
 )
 #endif
 
@@ -28,7 +26,7 @@ void * get_vector_back(Vector * vector);
 #ifdef vector_front
     #undef vector_front
     #define vector_front(vector, type) (\
-    (type*)get_vector_front(vector)\
+    (type*)get_vector_data(vector)\
 )
 #endif
 
